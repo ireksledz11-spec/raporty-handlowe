@@ -11,7 +11,7 @@
     <!-- Firebase SDK (Firestore) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAxwcZwaEJk4eJp8hLRBvpQFCozwcbP5-o",
@@ -33,7 +33,7 @@
             window.dbReady = false;
         }
 
-        window.firebaseExports = { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query, orderBy };
+        window.firebaseExports = { db, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query };
     </script>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
@@ -128,16 +128,16 @@
                 
                 <div class="flex flex-wrap items-center gap-6 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <label class="flex items-center gap-2 cursor-pointer font-medium">
-                        <input type="checkbox" name="quarter" value="1Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 1Q (Sty-Mar)
+                        <input type="checkbox" name="quarter" value="1Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 1Q
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer font-medium">
-                        <input type="checkbox" name="quarter" value="2Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 2Q (Kwi-Cze)
+                        <input type="checkbox" name="quarter" value="2Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 2Q
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer font-medium">
-                        <input type="checkbox" name="quarter" value="3Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 3Q (Lip-Wrz)
+                        <input type="checkbox" name="quarter" value="3Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 3Q
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer font-medium">
-                        <input type="checkbox" name="quarter" value="4Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 4Q (Paź-Gru)
+                        <input type="checkbox" name="quarter" value="4Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 4Q
                     </label>
                 </div>
 
