@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Raport&oacute;w z Wizyt Handlowych (Chmura)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase SDK (Firestore) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ==========================================
+        //  KONFIGURACJA FIREBASE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxwcZwaEJk4eJp8hLRBvpQFCozwcbP5-o",
+            authDomain: "raportyhandlowe-8b3a3.firebaseapp.com",
+            projectId: "raportyhandlowe-8b3a3",
+            storageBucket: "raportyhandlowe-8b3a3.firebasestorage.app",
+            messagingSenderId: "628280010992",
+            appId: "1:628280010992:web:8b2c44b0098b650b943a35"
+        };
+
+        // Inicjalizacja Firebase
+        let db = null;
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            window.dbReady = true;
+            console.log("Firebase po&#322;&#261;czony pomy&#347;lnie!");
+        } catch (e) {
+            console.warn("Firebase nie skonfigurowany.", e);
+            window.dbReady = false;
+        }
+
+        window.firebaseExports = { db, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy };
+    </script>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Nagówek -->
+    <header class="bg-blue-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="briefcase" class="w-7 h-7"></i>
+                <h1 class="text-xl font-bold">Raporty Handlowe (Chmura)</h1>
+            </div>
+            <div id="sync-status" class="text-xs bg-blue-700 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="status-dot"></span>
+                <span id="status-text">Oczekiwanie na konfiguracj&#281; Firebase...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Gówna zawarto -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Sekcja Formularza -->
+        <section class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i> Nowa Wizyta
+            </h2>
+
+            <form id="visit-form" class="space-y-4">
+                <!-- Data -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Data wizyty *</label>
+                    <input type="date" id="date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <!-- Oddzia -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Oddzia&#322; *</label>
+                    <input type="text" id="branch" list="branch-list" required placeholder="Wpisz lub wybierz..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <datalist id="branch-list"></datalist>
+                </div>
+
+                <!-- Handlowiec -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Handlowiec *</label>
+                    <input type="text" id="salesperson" list="salesperson-list" required placeholder="Imi&#281; i nazwisko..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <datalist id="salesperson-list"></datalist>
+                </div>
+
+                <!-- Klient -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Klient *</label>
+                    <input type="text" id="client" list="client-list" required placeholder="Nazwa klienta..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <datalist id="client-list"></datalist>
+                </div>
+
+                <!-- Info ze spotkania -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Info ze spotkania</label>
+                    <textarea id="meeting-info" rows="2" placeholder="Podsumowanie rozmowy..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                </div>
+
+                <!-- Wnioski i dziaania -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Wnioski i dzia&#322;ania</label>
+                    <textarea id="actions" rows="2" placeholder="Kolejne kroki..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                </div>
+
+                <!-- Potencja kwartalny [tony] -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Potencja&#322; kwartalny [tony]</label>
+                    <input type="number" step="0.01" min="0" id="potential" placeholder="0.00" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <!-- Pozyskane zamówienia 1H [tony] -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Pozyskane zam&oacute;wienia 1H [tony]</label>
+                    <input type="number" step="0.01" min="0" id="orders-1h" placeholder="0.00" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <!-- Pozyskane zamówienia 2H [tony] -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Pozyskane zam&oacute;wienia 2H [tony]</label>
+                    <input type="number" step="0.01" min="0" id="orders-2h" placeholder="0.00" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <!-- Przycisk zapisu -->
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition duration-200 flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Zapisz raport
+                </button>
+            </form>
+        </section>
+
+        <!-- Sekcja Listy i Raportów -->
+        <section class="lg:col-span-2 space-y-6">
+
+            <!-- Panel Generatora Raportów -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold mb-3 flex items-center gap-2 text-blue-600">
+                    <i data-lucide="file-spreadsheet" class="w-5 h-5"></i> Generowanie Raportu CSV
+                </h2>
+                <p class="text-sm text-slate-600 mb-4">Zaznacz kwarta&#322;y, kt&oacute;re maj&#261; znale&#378;&#263; si&#281; w wygenerowanym pliku raportu:</p>
+
+                <div class="flex flex-wrap items-center gap-6 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <label class="flex items-center gap-2 cursor-pointer font-medium">
+                        <input type="checkbox" name="quarter" value="1Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 1Q (Sty-Mar)
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer font-medium">
+                        <input type="checkbox" name="quarter" value="2Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 2Q (Kwi-Cze)
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer font-medium">
+                        <input type="checkbox" name="quarter" value="3Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 3Q (Lip-Wrz)
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer font-medium">
+                        <input type="checkbox" name="quarter" value="4Q" checked class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"> 4Q (Pa&#378;-Gru)
+                    </label>
+                </div>
+
+                <button id="generate-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2.5 rounded-lg transition duration-200 flex items-center gap-2">
+                    <i data-lucide="download" class="w-4 h-4"></i> Pobierz Raport CSV
+                </button>
+            </div>
+
+            <!-- Tabela Ostatnich Wizyt -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600">
+                    <i data-lucide="list" class="w-5 h-5"></i> Zarejestrowane Wizyty w Bazie
+                </h2>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-700">
+                                <th class="p-3 font-semibold">Data</th>
+                                <th class="p-3 font-semibold">Q</th>
+                                <th class="p-3 font-semibold">Oddzia&#322;</th>
+                                <th class="p-3 font-semibold">Handlowiec</th>
+                                <th class="p-3 font-semibold">Klient</th>
+                                <th class="p-3 font-semibold text-right">Potencja&#322; [t]</th>
+                                <th class="p-3 font-semibold text-right">1H [t]</th>
+                                <th class="p-3 font-semibold text-right">2H [t]</th>
+                                <th class="p-3 font-semibold text-center">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="visits-table-body" class="divide-y divide-slate-100">
+                            <!-- Wypeniane dynamicznie -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Skrypt Logiki Aplikacji -->
+    <script type="module">
+        document.getElementById('date').valueAsDate = new Date();
+        let visits = [];
+
+        function getQuarter(dateString) {
+            const month = new Date(dateString).getMonth() + 1;
+            if (month <= 3) return '1Q';
+            if (month <= 6) return '2Q';
+            if (month <= 9) return '3Q';
+            return '4Q';
+        }
+
+        function updateDatalists() {
+            const branches = [...new Set(visits.map(v => v.branch))].filter(Boolean);
+            const salespersons = [...new Set(visits.map(v => v.salesperson))].filter(Boolean);
+            const clients = [...new Set(visits.map(v => v.client))].filter(Boolean);
+
+            document.getElementById('branch-list').innerHTML = branches.map(b => `<option value="${b}">`).join('');
+            document.getElementById('salesperson-list').innerHTML = salespersons.map(s => `<option value="${s}">`).join('');
+            document.getElementById('client-list').innerHTML = clients.map(c => `<option value="${c}">`).join('');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('visits-table-body');
+            if (visits.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">Brak zarejestrowanych wizyt w bazie danych.</td></tr>`;
+                return;
+            }
+
+            const sorted = [...visits].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            tbody.innerHTML = sorted.map(v => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 whitespace-nowrap">${v.date}</td>
+                    <td class="p-3 font-bold text-blue-600">${getQuarter(v.date)}</td>
+                    <td class="p-3">${v.branch}</td>
+                    <td class="p-3">${v.salesperson}</td>
+                    <td class="p-3 font-medium">${v.client}</td>
+                    <td class="p-3 text-right">${v.potential ? Number(v.potential).toFixed(2) + ' t' : '-'}</td>
+                    <td class="p-3 text-right">${v.orders1h ? Number(v.orders1h).toFixed(2) + ' t' : '-'}</td>
+                    <td class="p-3 text-right">${v.orders2h ? Number(v.orders2h).toFixed(2) + ' t' : '-'}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="window.deleteVisit('${v.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="Usu&#324; wizyt&#281;">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const checkInterval = setInterval(() => {
+                if (window.dbReady !== undefined) {
+                    clearInterval(checkInterval);
+                    const statusDot = document.getElementById('status-dot');
+                    const statusText = document.getElementById('status-text');
+
+                    if (window.dbReady && window.firebaseExports.db) {
+                        statusDot.className = "w-2 h-2 rounded-full bg-emerald-400";
+                        statusText.textContent = "Po&#322;&#261;czono z chmur&#261; (Firebase)";
+
+                        const { db, collection, onSnapshot, query } = window.firebaseExports;
+                        const q = query(collection(db, "visits"));
+
+                        onSnapshot(q, (snapshot) => {
+                            visits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            renderTable();
+                            updateDatalists();
+                        });
+
+                    } else {
+                        statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
+                        statusText.textContent = "Brak konfiguracji Firebase";
+                    }
+                }
+            }, 200);
+        });
+
+        document.getElementById('visit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!window.dbReady) {
+                alert("Najpierw skonfiguruj dane dost&#281;powe do Firebase!");
+                return;
+            }
+
+            const newVisit = {
+                date: document.getElementById('date').value,
+                branch: document.getElementById('branch').value.trim(),
+                salesperson: document.getElementById('salesperson').value.trim(),
+                client: document.getElementById('client').value.trim(),
+                meetingInfo: document.getElementById('meeting-info').value.trim(),
+                actions: document.getElementById('actions').value.trim(),
+                potential: parseFloat(document.getElementById('potential').value) || 0,
+                orders1h: parseFloat(document.getElementById('orders-1h').value) || 0,
+                orders2h: parseFloat(document.getElementById('orders-2h').value) || 0,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                const { db, collection, addDoc } = window.firebaseExports;
+                await addDoc(collection(db, "visits"), newVisit);
+                e.target.reset();
+                document.getElementById('date').valueAsDate = new Date();
+                alert("Zapisano wizyt&#281; w chmurze!");
+            } catch (err) {
+                console.error("B&#322;&#261;d zapisu: ", err);
+                alert("Wyst&#261;pi&#322; b&#322;&#261;d podczas zapisu.");
+            }
+        });
+
+        window.deleteVisit = async function(id) {
+            if (confirm("Czy na pewno chcesz usun&#261;&#263; t&#281; wizyt&#281;?")) {
+                try {
+                    const { db, doc, deleteDoc } = window.firebaseExports;
+                    await deleteDoc(doc(db, "visits", id));
+                } catch (err) {
+                    console.error("B&#322;&#261;d usuwania: ", err);
+                }
+            }
+        };
+
+        document.getElementById('generate-btn').addEventListener('click', () => {
+            const selectedQuarters = Array.from(document.querySelectorAll('input[name="quarter"]:checked'))
+                                          .map(cb => cb.value);
+
+            if (selectedQuarters.length === 0) {
+                alert("Zaznacz przynajmniej jeden kwarta&#322;!");
+                return;
+            }
+
+            const filtered = visits.filter(v => selectedQuarters.includes(getQuarter(v.date)));
+
+            if (filtered.length === 0) {
+                alert("Brak danych dla wybranego okresu.");
+                return;
+            }
+
+            let csvContent = "\uFEFFData;Kwarta&#322;;Oddzia&#322;;Handlowiec;Klient;Info ze spotkania;Wnioski i dzia&#322;ania;Potencja&#322; kwartalny [tony];Pozyskane zam&oacute;wienia 1H [tony];Pozyskane zam&oacute;wienia 2H [tony]\n";
+
+            filtered.forEach(v => {
+                const row = [
+                    v.date,
+                    getQuarter(v.date),
+                    `"${(v.branch || '').replace(/"/g, '""')}"`,
+                    `"${(v.salesperson || '').replace(/"/g, '""')}"`,
+                    `"${(v.client || '').replace(/"/g, '""')}"`,
+                    `"${(v.meetingInfo || '').replace(/"/g, '""')}"`,
+                    `"${(v.actions || '').replace(/"/g, '""')}"`,
+                    v.potential || 0,
+                    v.orders1h || 0,
+                    v.orders2h || 0
+                ];
+                csvContent += row.join(";") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `raport_wizyt_${selectedQuarters.join('_')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+    </script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
